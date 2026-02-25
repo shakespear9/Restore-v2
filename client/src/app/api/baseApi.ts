@@ -5,6 +5,7 @@ import {
 } from "@reduxjs/toolkit/query";
 import { startLoading, stopLoading } from "../layout/uiSlice";
 import { toast } from "react-toastify";
+import { router } from "../routes/Routes";
 // import type { RootState } from "../store/store";
 
 const customBaseQuery = fetchBaseQuery({
@@ -39,7 +40,7 @@ export const baseQueryWithErrorHandling = async (
         if (typeof responseData === "string") {
           toast.error(responseData);
         } else if ("errors" in responseData) {
-          toast.error("validation error");
+          throw Object.values(responseData.errors).flat().join(", ");
         } else {
           toast.error(responseData.title);
         }
@@ -53,13 +54,13 @@ export const baseQueryWithErrorHandling = async (
 
       case 404:
         if (typeof responseData === "object" && "title" in responseData) {
-          toast.error(responseData.title);
+          router.navigate("/not-found");
         }
         break;
 
       case 500:
-        if (typeof responseData === "object" && "title" in responseData) {
-          toast.error(responseData.title);
+        if (typeof responseData === "object") {
+          router.navigate("/server-error", { state: { error: responseData } });
         }
         break;
 

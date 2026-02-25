@@ -1,4 +1,13 @@
-import { Button, ButtonGroup, Container, Typography } from "@mui/material";
+import {
+  Alert,
+  AlertTitle,
+  Button,
+  ButtonGroup,
+  Container,
+  List,
+  ListItem,
+  Typography,
+} from "@mui/material";
 import {
   useLazyGet400errorQuery,
   useLazyGet401errorQuery,
@@ -6,13 +15,33 @@ import {
   useLazyGet500errorQuery,
   useLazyGetValidationErrorQuery,
 } from "./errorApi";
+import { useState } from "react";
 
 export default function AboutPage() {
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+
   const [trigger400Error] = useLazyGet400errorQuery();
   const [trigger401Error] = useLazyGet401errorQuery();
   const [trigger404Error] = useLazyGet404errorQuery();
   const [trigger500Error] = useLazyGet500errorQuery();
   const [triggerValidationError] = useLazyGetValidationErrorQuery();
+
+  const getValidaitonError = async () => {
+    try {
+      await triggerValidationError().unwrap();
+    } catch (error: unknown) {
+      if (
+        error &&
+        typeof error === "object" &&
+        "message" in error &&
+        typeof (error as { message: unknown }).message === "string"
+      ) {
+        const errorArray = (error as { message: string }).message.split(", ");
+        console.log(errorArray);
+        setValidationErrors(errorArray);
+      }
+    }
+  };
 
   return (
     <>
@@ -45,15 +74,20 @@ export default function AboutPage() {
           >
             Test 500 Error
           </Button>
-          <Button
-            variant="contained"
-            onClick={() =>
-              triggerValidationError().catch((err) => console.log(err))
-            }
-          >
+          <Button variant="contained" onClick={getValidaitonError}>
             Test Validation Error
           </Button>
         </ButtonGroup>
+        {validationErrors.length > 0 && (
+          <Alert severity="error">
+            <AlertTitle>Validation errors</AlertTitle>
+            <List>
+              {validationErrors.map((err) => (
+                <ListItem key={err}>{err}</ListItem>
+              ))}
+            </List>
+          </Alert>
+        )}
       </Container>
     </>
   );
