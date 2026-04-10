@@ -12,7 +12,7 @@ import {
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
-import { NavLink } from "react-router";
+import { Link, NavLink } from "react-router";
 import { useAppDispatch, useAppSelector } from "../hooks/hooks";
 import { toggleDarkMode } from "./uiSlice";
 
@@ -75,7 +75,12 @@ export default function Navbar() {
             justifyContent: "space-between",
           }}
         >
-          <IconButton size="large" sx={{ color: "inherit" }}>
+          <IconButton
+            component={Link}
+            to={"/basket"}
+            size="large"
+            sx={{ color: "inherit" }}
+          >
             <Badge badgeContent="4" color="secondary">
               <ShoppingCartIcon />
             </Badge>

@@ -10,6 +10,7 @@ import { router } from "../routes/Routes";
 
 const customBaseQuery = fetchBaseQuery({
   baseUrl: "https://localhost:5001/api",
+  credentials: "include", // allow cookies
 });
 
 type ErrorResponse = string | { title: string } | { errors: string[] };
