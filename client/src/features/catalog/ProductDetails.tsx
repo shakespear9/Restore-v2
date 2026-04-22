@@ -12,14 +12,48 @@ import {
   Typography,
 } from "@mui/material";
 import { useFetchProductDetailsQuery } from "./catalogApi";
+import {
+  useAddBasketItemMutation,
+  useFetchBasketQuery,
+  useRemoveBasketItemMutation,
+} from "../basket/basketApi";
+import { useEffect, useState, type ChangeEvent } from "react";
 
 export default function ProductDetails() {
   const { id } = useParams();
+  const [addBasketItem] = useAddBasketItemMutation();
+  const [removeBasketItem] = useRemoveBasketItemMutation();
+  const { data: basket } = useFetchBasketQuery();
+  const item = basket?.items.find((x) => x.productId === +id!);
+  const [quantity, setQuantity] = useState(0);
+
   const { data: product, isLoading } = useFetchProductDetailsQuery(
     id ? +id : 0,
   );
 
+  useEffect(() => {
+    if (item) {
+      setQuantity(item.quantity);
+    }
+  }, [item]);
+
   if (!product || isLoading) return <div>Loading . . . </div>;
+  const handleUpdateBasket = () => {
+    const updatedQuantity = item
+      ? Math.abs(quantity - item.quantity)
+      : quantity;
+    if (!item || quantity > item.quantity) {
+      addBasketItem({ product, quantity: updatedQuantity });
+    } else {
+      removeBasketItem({ productId: product.id, quantity: updatedQuantity });
+    }
+  };
+
+  const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const value = +event.currentTarget.value;
+
+    if (value >= 0) setQuantity(value);
+  };
 
   const productDetails = [
     { label: "Name", value: product.name },
@@ -69,7 +103,8 @@ export default function ProductDetails() {
               type="number"
               label="Quantity in basket"
               fullWidth
-              defaultValue={1}
+              onChange={handleInputChange}
+              value={quantity}
             />
           </Grid>
           <Grid size={6}>
@@ -79,8 +114,12 @@ export default function ProductDetails() {
               size="large"
               variant="contained"
               fullWidth
+              onClick={handleUpdateBasket}
+              disabled={
+                quantity === item?.quantity || (!item && quantity === 0)
+              }
             >
-              Add to Basket
+              {item ? "Add to Basket" : "Update Basket"}
             </Button>
           </Grid>
         </Grid>

@@ -1,6 +1,11 @@
 import { createApi } from "@reduxjs/toolkit/query/react";
 import { baseQueryWithErrorHandling } from "../../app/api/baseApi";
-import type { Basket } from "../../app/models/basket";
+import { Item, type Basket } from "../../app/models/basket";
+import type { Product } from "../../app/models/product";
+
+function isBasketItem(product: Product | Item): product is Item {
+  return (product as Item).quantity !== undefined;
+}
 
 export const basketApi = createApi({
   reducerPath: "basketApi",
@@ -13,17 +18,55 @@ export const basketApi = createApi({
     }),
     addBasketItem: builder.mutation<
       Basket,
-      { productId: number; quantity: number }
+      { product: Product | Item; quantity: number }
     >({
-      query: ({ productId, quantity }) => ({
-        url: `basket?productId=${productId}&quantity=${quantity}`,
-        method: "POST",
-      }),
-      onQueryStarted: async (_, { dispatch, queryFulfilled }) => {
+      query: ({ product, quantity }) => {
+        const productId = isBasketItem(product)
+          ? product.productId
+          : product.id;
+
+        return {
+          url: `basket?productId=${productId}&quantity=${quantity}`,
+          method: "POST",
+        };
+      },
+      onQueryStarted: async (
+        { product, quantity },
+        { dispatch, queryFulfilled },
+      ) => {
+        let isNewBasket = false;
+        const dispatchResult = dispatch(
+          basketApi.util.updateQueryData("fetchBasket", undefined, (draft) => {
+            const productId = isBasketItem(product)
+              ? product.productId
+              : product.id;
+
+            if (!draft?.basketId) {
+              isNewBasket = true;
+            }
+
+            if (!isNewBasket) {
+              const existingItem = draft.items.find(
+                (item) => item.productId === productId,
+              );
+              if (existingItem) existingItem.quantity += quantity;
+              else
+                draft.items.push(
+                  isBasketItem(product)
+                    ? product
+                    : { ...product, productId: product.id, quantity },
+                );
+            }
+          }),
+        );
+
         try {
           await queryFulfilled;
-          dispatch(basketApi.util.invalidateTags(["Basket"]));
+          if (isNewBasket) {
+            dispatch(basketApi.util.invalidateTags(["Basket"]));
+          }
         } catch (error) {
+          dispatchResult.undo();
           console.log(error);
         }
       },
@@ -36,8 +79,37 @@ export const basketApi = createApi({
         url: `basket?productId=${productId}&quantity=${quantity}`,
         method: "DELETE",
       }),
+      onQueryStarted: async (
+        { productId, quantity },
+        { dispatch, queryFulfilled },
+      ) => {
+        const dispatchResult = dispatch(
+          basketApi.util.updateQueryData("fetchBasket", undefined, (draft) => {
+            const itemIndex = draft.items.findIndex(
+              (item) => item.productId === productId,
+            );
+            if (itemIndex > -1) {
+              draft.items[itemIndex].quantity -= quantity;
+              if (draft.items[itemIndex].quantity <= 0) {
+                draft.items.splice(itemIndex, 1);
+              }
+            }
+          }),
+        );
+
+        try {
+          await queryFulfilled;
+        } catch (error) {
+          dispatchResult.undo();
+          console.log(error);
+        }
+      },
     }),
   }),
 });
 
-export const { useFetchBasketQuery, useAddBasketItemMutation } = basketApi;
+export const {
+  useFetchBasketQuery,
+  useAddBasketItemMutation,
+  useRemoveBasketItemMutation,
+} = basketApi;
