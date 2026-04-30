@@ -16,10 +16,19 @@ namespace API.Controllers
         private StoreContext _context { get; }
 
         [HttpGet] //api/products
-        public async Task<ActionResult<List<Product>>> GetProducts()
+        public async Task<ActionResult<List<Product>>> GetProducts([FromQuery] ProductParams param)
         {
-            var products = await _context.Products.ToListAsync();
+            var query = _context.Products.Search(param.SearchTerm)
+                                         .Filter(param.Brands, param.Types)
+                                         .Sort(param.OrderBy)
+                                         .AsQueryable();
+
+            var products = await PagedList<Product>.ToPagedList(query, param.PageNumber, param.PageSize);
+
+            Response.AddPaginationHeader(products.Metadata);
+
             return products;
+            // return Ok(new { Items = products, products.Metadata });
         }
 
         [HttpGet("{id}")] //api/products/1
@@ -32,6 +41,15 @@ namespace API.Controllers
             }
 
             return product;
+        }
+
+        [HttpGet("filters")]
+        public async Task<IActionResult> GetFilter()
+        {
+            var brands = await _context.Products.Select(x => x.Brand).Distinct().ToListAsync();
+            var types = await _context.Products.Select(x => x.Type).Distinct().ToListAsync();
+
+            return Ok(new { brands, types });
         }
     }
 }
